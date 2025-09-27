@@ -4,19 +4,24 @@ import Order from "@/models/orders";
 
 export async function POST(req: Request) {
   await dbConnect();
-  const { items } = await req.json();
+  const { items, subtotal, tax, shipping, total, customer, paymentMethod } = await req.json();
+
   if (!items || !Array.isArray(items)) {
     return NextResponse.json({ error: "Invalid items" }, { status: 400 });
   }
 
-  const total = items.reduce((s: number, i: any) => s + i.price * i.qty, 0);
-
   const externalId = `order-${Date.now()}`;
+
   const order = await Order.create({
     orderId: externalId,
     items,
-    total,
-    status: "PENDING"
+    total, 
+    status: "PENDING",
+    paymentDetails: {
+      paymentMethod,
+      amount: total,
+      payerEmail: customer?.email || "customer@example.com"
+    }
   });
 
   const resp = await fetch("https://api.xendit.co/v2/invoices", {
@@ -28,7 +33,7 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       external_id: externalId,
       amount: total,
-      payer_email: "customer@example.com",
+      payer_email: customer?.email || "customer@example.com",
       success_redirect_url: `${process.env.BASE_URL}/payment/success`,
       failure_redirect_url: `${process.env.BASE_URL}/payment/fail`
     })
@@ -40,7 +45,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create invoice" }, { status: 500 });
   }
 
-  const invoice = await resp.json();
+  const invoice = await resp.json().catch(err => {
+    console.error("Failed to parse Xendit response:", err);
+    return null;
+  });
+  console.log("Xendit invoice response:", invoice);
 
   order.xenditInvoiceId = invoice.id;
   await order.save();

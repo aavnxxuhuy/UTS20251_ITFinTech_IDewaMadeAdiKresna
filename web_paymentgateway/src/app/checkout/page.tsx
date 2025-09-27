@@ -1,6 +1,5 @@
 "use client";
 import { useCart } from "../components/CartContext";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function CheckoutPage() {
@@ -10,7 +9,6 @@ export default function CheckoutPage() {
   const tax = subtotal * 0.1;
   const total = subtotal + tax;
 
-  const router = useRouter();
 
   // Update kuantitas di DB
   const changeQty = async (id: string, newQty: number) => {

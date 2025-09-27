@@ -25,6 +25,13 @@ export default function PaymentPage() {
 
 
   const handleSubmit = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(email)) {
+      alert("Format email tidak valid. Contoh: uhuy@gmail.com");
+      setLoading(false);
+      return;
+    }
+
     if (!name || !email || !address) {
       alert("Lengkapi semua data diri!");
       return;
@@ -77,14 +84,14 @@ export default function PaymentPage() {
         <h2 className="text-xl font-bold">Data Diri & Alamat</h2>
         <input
           className="input input-bordered w-full"
-          placeholder="Nama"
+          placeholder="Nama : Adi Kresna"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
         <input
           className="input input-bordered w-full"
-          placeholder="Email"
+          placeholder="Email : uhuy@gmail.com"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -92,7 +99,7 @@ export default function PaymentPage() {
         />
         <textarea
           className="textarea textarea-bordered w-full"
-          placeholder="Alamat"
+          placeholder="Alamat : Jl. Kuta No. 123, Bali"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           required
