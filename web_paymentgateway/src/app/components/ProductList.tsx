@@ -23,8 +23,8 @@ export default function ProductList({ products }: { products: Product[] }) {
   });
 
   return (
-    <div className="p-4 max-w-7xl mx-auto">
-      {/* Search Bar */}
+    <div className="py-6 px-8 max-w-7xl mx-auto">
+
       <div className="mb-4">
         <input
           type="text"
@@ -35,24 +35,25 @@ export default function ProductList({ products }: { products: Product[] }) {
         />
       </div>
 
-      {/* Category Tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveCat(cat)}
-            className={`px-4 py-2 rounded-full border transition ${
-              activeCat === cat
-                ? "bg-primary text-white border-primary"
-                : "bg-base-100 text-base-content border-gray-300 hover:bg-gray-200"
-            }`}
+            className={`
+              px-4 py-2 rounded-full border transition
+              ${activeCat === cat
+                ? "bg-blue-500 text-white border-blue-500 dark:bg-gray-800 dark:text-white"
+                : "bg-base-100 text-base-content border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              }
+            `}
           >
             {cat}
           </button>
         ))}
       </div>
 
-      {/* Product Grid */}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((p) => (
           <ProductCard key={p._id} product={p} />

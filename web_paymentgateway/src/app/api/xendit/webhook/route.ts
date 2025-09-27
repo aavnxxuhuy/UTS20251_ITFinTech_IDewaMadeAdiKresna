@@ -4,26 +4,55 @@ import Order from "@/models/orders";
 
 export async function POST(req: Request) {
   await dbConnect();
+
   const body = await req.json();
-  // body example: { id, external_id, status, ... }
+  console.log("Xendit Webhook payload:", body);
 
-  // Verifikasi header callback token (opsional, gunakan callback-token di dashboard)
-  // const token = req.headers.get("x-callback-token");
-  // if (token !== process.env.XENDIT_CALLBACK_TOKEN) return NextResponse.json({}, { status: 403 });
+  const external_id = body.external_id || body.data?.external_id;
+  const status = body.status || body.data?.status;
+  const invoiceId = body.id || body.data?.id;
+  const amount = body.amount || body.data?.amount;
+  const paidAmount = body.paid_amount || body.data?.paid_amount;
+  const paidAt = body.paid_at || body.data?.paid_at;
+  const paymentMethod = body.payment_method || body.data?.payment_method;
+  const paymentChannel = body.payment_channel || body.data?.payment_channel;
+  const payerEmail = body.payer_email || body.data?.payer_email;
 
-  const { external_id, status } = body;
+  if (!external_id || !status) {
+    console.log("Webhook missing external_id or status:", body);
+    return NextResponse.json({ success: false, message: "Invalid payload" }, { status: 400 });
+  }
 
-  // Map status Xendit → status DB
   let newStatus = "PENDING";
-  if (status === "PAID") newStatus = "PAID";
+  if (status === "PAID" || status === "SUCCEEDED") newStatus = "PAID";
   else if (status === "EXPIRED") newStatus = "EXPIRED";
-  else if (status === "FAILED") newStatus = "FAILED";
+  else if (status === "CANCELLED" || status === "FAILED") newStatus = "CANCELLED";
 
-  await Order.findOneAndUpdate(
+  const order = await Order.findOneAndUpdate(
     { orderId: external_id },
-    { status: newStatus },
+    {
+      status: newStatus,
+      xenditInvoiceId: invoiceId,
+      paymentDetails: {
+        invoiceId,
+        amount,
+        paidAmount,
+        status,
+        paidAt,
+        paymentMethod,
+        paymentChannel,
+        payerEmail,
+        rawPayload: body
+      }
+    },
     { new: true }
   );
 
+  if (!order) {
+    console.log("Order not found for external_id:", external_id);
+    return NextResponse.json({ success: false, message: "Order not found" }, { status: 404 });
+  }
+
+  console.log("Order updated via webhook:", order);
   return NextResponse.json({ success: true });
 }
