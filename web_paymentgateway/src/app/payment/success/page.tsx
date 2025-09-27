@@ -17,7 +17,7 @@ export default function FailedPage() {
   }, [countdown, router]);
 
   return (
-    <div className="p-8 text-center">
+    <div className="min-h-screen p-8 text-center">
 
       <h1 className="text-2xl font-bold">Pembayaran Berhasil ✅</h1>
 

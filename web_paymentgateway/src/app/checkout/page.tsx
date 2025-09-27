@@ -90,12 +90,6 @@ export default function CheckoutPage() {
                     >
                       +
                     </button>
-                    <button
-                      className="ml-2 text-red-500"
-                      onClick={() => deleteItem(i.id)}
-                    >
-                      ✕
-                    </button>
                   </div>
                 </div>
                 <div className="col-span-1 text-right font-semibold">
@@ -121,7 +115,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <Link href="/">
+            <Link href="/payment">
               <button className="btn btn-primary w-full">
                 Lanjut ke Pembayaran →
               </button>
