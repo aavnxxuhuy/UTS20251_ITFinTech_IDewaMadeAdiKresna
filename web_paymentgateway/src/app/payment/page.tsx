@@ -1,43 +1,64 @@
+// app/payment/page.tsx
 "use client";
 import { useCart } from "../components/CartContext";
 import { useState } from "react";
 
 export default function PaymentPage() {
   const { items, clear } = useCart();
-  const [method, setMethod] = useState("card");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const total = items.reduce((s, i) => s + i.price * i.qty, 0) * 1.1;
 
-  const handlePay = () => {
-    alert(`Paid $${total.toFixed(2)} with ${method}`);
-    clear();
+  const handleSubmit = async () => {
+    if (!name || !email || !address) {
+      alert("Lengkapi data diri");
+      return;
+    }
+    setLoading(true);
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customer: { name, email, address },
+        items
+      }),
+    });
+    const data = await res.json();
+    setLoading(false);
+
+    if (data.invoiceURL) {
+      // redirect langsung ke halaman pembayaran Xendit
+      window.location.href = data.invoiceURL;
+    } else {
+      alert("Gagal membuat invoice");
+    }
   };
 
   return (
     <div className="p-4 space-y-4">
-      <div>
-        <h2 className="font-bold mb-2">Shipping Address</h2>
-        <div className="bg-gray-100 h-16 rounded"></div>
-      </div>
-      <div>
-        <h2 className="font-bold mb-2">Payment Method</h2>
-        {["card", "paypal", "other"].map((m) => (
-          <label key={m} className="flex items-center gap-2 mb-1">
-            <input
-              type="radio"
-              className="radio"
-              checked={method === m}
-              onChange={() => setMethod(m)}
-            />
-            {m === "card" ? "Credit/Debit Card" : m === "paypal" ? "PayPal" : "Other"}
-          </label>
-        ))}
-      </div>
-      <div>
-        <h2 className="font-bold mb-2">Order Summary</h2>
-        <p>Total: Rp.{total.toFixed(2)}</p>
-      </div>
-      <button className="btn btn-primary w-full" onClick={handlePay}>
-        Lakukan Pembayaran
+      <h2 className="text-xl font-bold">Data Diri</h2>
+      <input className="input input-bordered w-full mb-2"
+             placeholder="Nama"
+             value={name}
+             onChange={(e) => setName(e.target.value)} />
+      <input className="input input-bordered w-full mb-2"
+             placeholder="Email"
+             value={email}
+             onChange={(e) => setEmail(e.target.value)} />
+      <textarea className="textarea textarea-bordered w-full mb-2"
+                placeholder="Alamat"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)} />
+
+      <button
+        className="btn btn-primary w-full"
+        disabled={loading}
+        onClick={handleSubmit}
+      >
+        {loading ? "Membuat Link Pembayaran..." : "Lanjut ke Pembayaran Xendit"}
       </button>
     </div>
   );

@@ -1,57 +1,50 @@
 // app/api/checkout/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import Order from "@/models/orders";    
-import Xendit from "xendit-node";
+import Order from "@/models/orders";
 
 export async function POST(req: Request) {
   await dbConnect();
-
   const { items } = await req.json();
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ error: "items required" }, { status: 400 });
+  if (!items || !Array.isArray(items)) {
+    return NextResponse.json({ error: "Invalid items" }, { status: 400 });
   }
 
-  // hitung total (andalkan price sudah integer IDR)
-  const total = items.reduce((sum: number, i: any) => sum + (i.price * i.qty), 0);
+  const total = items.reduce((s: number, i: any) => s + i.price * i.qty, 0);
 
-  // init xendit
-  const x = new Xendit({ secretKey: process.env.XENDIT_API_KEY! });
-  const { Invoice } = x;
+  const externalId = `order-${Date.now()}`;
+  const order = await Order.create({
+    orderId: externalId,
+    items,
+    total,
+    status: "PENDING"
+  });
 
-  const external_id = `order-${Date.now()}`; // ID unik yang kita gunakan di Order.orderId
+  const resp = await fetch("https://api.xendit.co/v2/invoices", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Basic " + Buffer.from(process.env.XENDIT_SECRET_KEY + ":").toString("base64")
+    },
+    body: JSON.stringify({
+      external_id: externalId,
+      amount: total,
+      payer_email: "customer@example.com",
+      success_redirect_url: `${process.env.BASE_URL}/payment/success`,
+      failure_redirect_url: `${process.env.BASE_URL}/payment/fail`
+    })
+  });
 
-  let invoice;
-  try {
-    invoice = await Invoice.createInvoice({
-      external_id,                                // snake_case untuk xendit-node v7
-      amount: Math.round(total),                  // pastikan integer
-      payer_email: "customer@example.com",        // gantikan dengan email sesungguhnya jika ada
-      success_redirect_url: `${process.env.BASE_URL}/payment/success?orderId=${external_id}`,
-      failure_redirect_url: `${process.env.BASE_URL}/payment/failed?orderId=${external_id}`,
-    });
-  } catch (err) {
-    console.error("Xendit createInvoice error:", err);
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error("Xendit create invoice error:", errText);
     return NextResponse.json({ error: "Failed to create invoice" }, { status: 500 });
   }
 
-  // simpan order di DB dengan mapping items
-  const order = await Order.create({
-    orderId: external_id,
-    items: items.map((it: any) => ({
-      productId: it.id ?? it.productId,
-      name: it.name,
-      price: it.price,
-      qty: it.qty,
-      image: it.image ?? ""
-    })),
-    total,
-    status: (invoice?.status ?? "PENDING").toUpperCase(),
-    xenditInvoiceId: invoice?.id ?? null,
-  });
+  const invoice = await resp.json();
 
-  return NextResponse.json({
-    invoiceURL: invoice?.invoice_url,
-    orderId: external_id,
-  });
+  order.xenditInvoiceId = invoice.id;
+  await order.save();
+
+  return NextResponse.json({ invoiceURL: invoice.invoice_url, orderId: order._id });
 }
