@@ -1,16 +1,15 @@
-// app/api/products/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Product from "@/models/products";
 
-export async function GET(req: Request, { params }: { params: { id: string }}) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   await dbConnect();
-  const p = await Product.findById(params.id).lean();
-  if (!p) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(p);
+  const product = await Product.findById(params.id).lean();
+  if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(product);
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string }}) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   await dbConnect();
   const body = await req.json();
   const updated = await Product.findByIdAndUpdate(params.id, body, { new: true });
@@ -18,7 +17,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string }})
   return NextResponse.json(updated);
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string }}) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   await dbConnect();
   const deleted = await Product.findByIdAndDelete(params.id);
   if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
