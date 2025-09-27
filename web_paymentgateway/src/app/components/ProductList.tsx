@@ -3,7 +3,7 @@ import { useState } from "react";
 import ProductCard from "./ProductCard";
 
 type Product = {
-  id: string;
+  _id: string;
   name: string;
   price: number;
   description: string;
@@ -55,7 +55,7 @@ export default function ProductList({ products }: { products: Product[] }) {
       {/* Product Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard key={p._id} product={p} />
         ))}
       </div>
     </div>

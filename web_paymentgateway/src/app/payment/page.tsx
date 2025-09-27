@@ -34,10 +34,10 @@ export default function PaymentPage() {
       </div>
       <div>
         <h2 className="font-bold mb-2">Order Summary</h2>
-        <p>Total: ${total.toFixed(2)}</p>
+        <p>Total: Rp.{total.toFixed(2)}</p>
       </div>
       <button className="btn btn-primary w-full" onClick={handlePay}>
-        Confirm & Pay
+        Lakukan Pembayaran
       </button>
     </div>
   );
