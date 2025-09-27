@@ -13,7 +13,6 @@ export default function CheckoutPage() {
   const router = useRouter();
   useEffect(() => { 
       if (items.length === 0) {
-      alert("Keranjang kosong, Anda akan dikembalikan ke beranda");  
       router.push("/");}
     }, [items, router]);
 
