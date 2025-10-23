@@ -9,6 +9,7 @@ export type ProductDoc = {
 };
 
 const ProductSchema = new Schema<ProductDoc>({
+  productId: { type: Schema.Types.ObjectId, ref: "Product", required: true }
   name: { type: String, required: true },
   price: { type: Number, required: true },
   description: { type: String, default: "" },

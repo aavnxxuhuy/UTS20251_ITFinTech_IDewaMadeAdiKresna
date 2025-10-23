@@ -1,10 +1,30 @@
+// app/api/orders/[orderId]/route.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/orders";
+import User from "@/models/user";
+import { verifyToken } from "@/lib/jwt";
+
+async function getUserFromCookie(req: Request) {
+  const cookie = req.headers.get("cookie") || "";
+  const match = cookie.split(";").map(s => s.trim()).find(s => s.startsWith("token="));
+  const token = match ? match.split("=")[1] : null;
+  if (!token) return null;
+
+  const payload: any = verifyToken(token);
+  if (!payload) return null;
+
+  const user = await User.findById(payload.sub).select("_id name email");
+  return user;
+}
 
 export async function GET(req: Request, { params }: any) {
   await dbConnect();
-  const order = await Order.findOne({ orderId: params.orderId }).lean();
+  const user = await getUserFromCookie(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const order = await Order.findOne({ orderId: params.orderId, user: user._id }).lean();
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
   return NextResponse.json(order);
 }

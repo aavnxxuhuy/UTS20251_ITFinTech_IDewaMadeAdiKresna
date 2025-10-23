@@ -8,9 +8,9 @@ export default function ProductCard({ product }: { product: any }) {
       id: product._id,
       name: product.name,
       price: product.price,
-      qty: 1,
       image: product.image,
       description: product.description || "",
+      quantity: 1,
     });
   };
 

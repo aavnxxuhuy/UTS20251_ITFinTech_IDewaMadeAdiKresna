@@ -5,7 +5,7 @@ type Item = {
   id: string; 
   name: string;
   price: number;
-  qty: number;
+  quantity: number;   
   image: string;
   description?: string;
 };
@@ -47,7 +47,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setItems((prev) => {
       const exist = prev.find((p) => p.id === item.id);
       return exist
-        ? prev.map((p) => (p.id === item.id ? { ...p, qty: p.qty + item.qty } : p))
+        ? prev.map((p) => (p.id === item.id ? { ...p, qty: p.quantity + item.quantity } : p))
         : [...prev, item];
     });
 
@@ -60,7 +60,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           name: item.name,
           price: item.price,
           image: item.image,
-          qty: item.qty,
+          qty: item.quantity,
         }),
       });
     } catch (err) {

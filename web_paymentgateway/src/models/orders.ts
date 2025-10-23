@@ -1,32 +1,39 @@
-import { Schema, model, models } from "mongoose";
+// models/order.ts
+import mongoose, { Schema, Document } from "mongoose";
 
-const OrderItemSchema = new Schema({
-  productId: String,
-  name: String,
-  price: Number,
-  qty: Number,
-  image: String
-}, { _id: false });
+interface IOrder extends Document {
+  user: mongoose.Types.ObjectId;
+  orderId: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    price: number;
+  }>;
+  total: number;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-const PaymentDetailSchema = new Schema({
-  invoiceId: String,
-  amount: Number,
-  paidAmount: Number,
-  status: String,
-  paidAt: Date,
-  paymentMethod: String,
-  paymentChannel: String,
-  payerEmail: String,
-  rawPayload: Schema.Types.Mixed
-}, { _id: false });
+const OrderSchema = new Schema<IOrder>(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    orderId: { type: String, required: true, unique: true },
+    items: [
+      {
+        productId: { type: String, required: true },
+        quantity: { type: Number, required: true },
+        price: { type: Number, required: true },
+      },
+    ],
+    total: { type: Number, required: true },
+    status: { type: String, default: "PENDING" },
+  },
+  { timestamps: true }
+);
 
-const orderSchema = new Schema({
-  orderId: { type: String, required: true, unique: true },
-  items: { type: [OrderItemSchema], required: true },
-  total: { type: Number, required: true },
-  status: { type: String, enum: ["PENDING","PAID","EXPIRED","CANCELLED"], default: "PENDING" },
-  xenditInvoiceId: String,
-  paymentDetails: PaymentDetailSchema
-}, { timestamps: true });
-
-export default models.Order || model("Order", orderSchema);
+export default mongoose.models.Order || mongoose.model<IOrder>("Order", OrderSchema);

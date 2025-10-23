@@ -5,7 +5,7 @@ import Link from "next/link";
 export default function CheckoutPage() {
   const { items, updateQty, removeItem } = useCart();
 
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const tax = subtotal * 0.1;
   const total = subtotal + tax;
 
@@ -68,14 +68,14 @@ export default function CheckoutPage() {
                   <div className="flex items-center space-x-2 mt-2">
                     <button
                       className="px-2 py-1 bg-gray-700 text-white rounded"
-                      onClick={() => changeQty(i.id, i.qty - 1)}
+                      onClick={() => changeQty(i.id, i.quantity - 1)}
                     >
                       –
                     </button>
                     <input
                       type="number"
                       className="w-14 text-center border rounded"
-                      value={i.qty}
+                      value={i.quantity}
                       min={1}
                       onChange={(e) => {
                         const val = parseInt(e.target.value, 10);
@@ -84,14 +84,14 @@ export default function CheckoutPage() {
                     />
                     <button
                       className="px-2 py-1 bg-gray-700 text-white rounded"
-                      onClick={() => changeQty(i.id, i.qty + 1)}
+                      onClick={() => changeQty(i.id, i.quantity + 1)}
                     >
                       +
                     </button>
                   </div>
                 </div>
                 <div className="col-span-1 text-right font-semibold">
-                  Rp.{(i.price * i.qty).toLocaleString("id-ID")}
+                  Rp.{(i.price * i.quantity).toLocaleString("id-ID")}
                 </div>
               </div>
             ))}
