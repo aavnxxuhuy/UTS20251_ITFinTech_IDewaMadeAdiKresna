@@ -47,14 +47,27 @@ export async function POST(req: Request) {
       order.paymentDetails?.items ||
       body.payment_details?.[0]?.payment_response?.raw_invoice_payload?.items ||
       [];
-    const shippingFee = order.paymentDetails?.items?.find((i: any) => i.name.toLowerCase().includes("ongkir"))?.price || 0;
-    const taxAmount = order.paymentDetails?.items?.find((i: any) => i.name.toLowerCase().includes("pajak"))?.price || 0;
+
+    // Hitung Ongkir dari item "Ongkos Kirim"
+    const shippingItem = xenditItems.find((i: any) =>
+      i.name.toLowerCase().includes("ongkos kirim")
+    );
+    const shippingFee = shippingItem ? shippingItem.price : 0;
+
+    // Hitung Pajak jika ada
+    const taxItem = xenditItems.find((i: any) => i.name.toLowerCase().includes("pajak"));
+    const taxAmount = taxItem ? taxItem.price : 0;
+
+    // Total amount
     const totalAmount = order.paymentDetails?.paid_amount || body.amount || body.data?.amount || 0;
 
     // 🔹 Kirim WhatsApp
     if (order.user?.phone) {
       let itemsText = xenditItems
-        .filter((i: any) => !i.name.toLowerCase().includes("ongkir") && !i.name.toLowerCase().includes("pajak"))
+        .filter((i: any) => {
+          const name = i.name.toLowerCase();
+          return !name.includes("ongkos kirim") && !name.includes("pajak");
+        })
         .map(
           (i: any) =>
             `${i.name} (${i.quantity}) Rp${(i.price || 0).toLocaleString("id-ID")}`
@@ -74,7 +87,10 @@ export async function POST(req: Request) {
 
     // 🔹 Buat email HTML
     const itemsHtml = xenditItems
-      .filter((i: any) => !i.name.toLowerCase().includes("ongkir") && !i.name.toLowerCase().includes("pajak"))
+      .filter((i: any) => {
+        const name = i.name.toLowerCase();
+        return !name.includes("ongkos kirim") && !name.includes("pajak");
+      })
       .map(
         (i: any) => `<tr>
         <td style="padding:5px 10px;">${i.name}</td>
