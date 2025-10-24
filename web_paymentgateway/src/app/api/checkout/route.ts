@@ -5,6 +5,7 @@ import User from "@/models/user";
 import Order from "@/models/orders";
 import { verifyToken } from "@/lib/jwt";
 import { sendWhatsAppNotification } from "@/lib/waService";
+import { sendEmail } from "@/lib/email"; // <-- import email helper
 
 async function getUserFromCookie(req: Request) {
   const cookie = req.headers.get("cookie") || "";
@@ -25,7 +26,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { customer, items, subtotal, tax, shipping, total } = body;
 
-    // ✅ Validasi dasar
     if (!customer?.name || !customer?.email || !customer?.address) {
       return NextResponse.json({ error: "Data pelanggan tidak lengkap." }, { status: 400 });
     }
@@ -34,23 +34,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Daftar produk kosong." }, { status: 400 });
     }
 
-    // ✅ Ambil user login
     const user = await getUserFromCookie(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // ✅ Buat ID unik transaksi
     const externalId = `order-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
-
     const fixedShipping = shipping || 10000;
     const computedTax = tax ?? Math.round(subtotal * 0.1);
     const computedTotal = total ?? subtotal + computedTax + fixedShipping;
 
-    // ✅ Simpan order ke database
     const newOrder = await Order.create({
       user: user._id,
       orderId: externalId,
       items: items.map((i: any) => ({
-        productId: i.productId || i.id, // 🔥 ambil dari cart (id) jika productId tidak ada
+        productId: i.productId || i.id,
         quantity: i.quantity,
         price: i.price,
       })),
@@ -59,8 +55,9 @@ export async function POST(req: Request) {
     });
 
     console.log("email customer:", customer.email, "user email:", user.email);
+    console.log(externalId, "Order created:", newOrder);
 
-    // ✅ Buat invoice ke Xendit
+    // Buat invoice Xendit
     const invoiceRes = await fetch("https://api.xendit.co/v2/invoices", {
       method: "POST",
       headers: {
@@ -103,18 +100,35 @@ export async function POST(req: Request) {
     });
 
     const invoice = await invoiceRes.json();
-
     if (!invoice.id) {
       console.error("Xendit Error:", invoice);
       return NextResponse.json({ error: "Gagal membuat invoice Xendit", detail: invoice }, { status: 500 });
     }
 
+    console.log("Invoice URL:", invoice.invoice_url);
+
     // ✅ Kirim WhatsApp
-    const message = `Halo ${user.name}, pesanan Anda dengan kode *${externalId}* telah dibuat dengan total Rp${computedTotal.toLocaleString(
+    const waMessage = `Halo ${user.name}, pesanan Anda dengan kode *${externalId}* telah dibuat dengan total Rp${computedTotal.toLocaleString(
       "id-ID"
     )}. Silakan lakukan pembayaran melalui link berikut:\n${invoice.invoice_url}\n\nTerima kasih telah berbelanja!`;
 
-    await sendWhatsAppNotification(user.phone || "08123456789", message);
+    await sendWhatsAppNotification(user.phone || "08123456789", waMessage);
+
+    // ✅ Kirim Email
+    const emailHtml = `
+      <p>Halo ${user.name},</p>
+      <p>Pesanan Anda dengan kode <b>${externalId}</b> telah dibuat.</p>
+      <p>Total: Rp${computedTotal.toLocaleString("id-ID")}</p>
+      <p>Silakan lakukan pembayaran melalui <a href="${invoice.invoice_url}">link ini</a>.</p>
+      <p>Terima kasih telah berbelanja di PrasmulEats!</p>
+    `;
+
+    try {
+      await sendEmail(customer.email, `Invoice Pesanan ${externalId}`, emailHtml);
+      console.log("Email invoice sent to", customer.email);
+    } catch (err) {
+      console.error("Failed to send email:", err);
+    }
 
     return NextResponse.json({
       success: true,
