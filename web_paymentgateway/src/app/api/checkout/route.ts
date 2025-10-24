@@ -58,6 +58,8 @@ export async function POST(req: Request) {
       status: "PENDING",
     });
 
+    console.log("email customer:", customer.email, "user email:", user.email);
+
     // ✅ Buat invoice ke Xendit
     const invoiceRes = await fetch("https://api.xendit.co/v2/invoices", {
       method: "POST",
@@ -96,6 +98,7 @@ export async function POST(req: Request) {
         ],
         success_redirect_url: `${process.env.BASE_URL}/payment/success`,
         failure_redirect_url: `${process.env.BASE_URL}/payment/fail`,
+        customer_notification: true,
       }),
     });
 
