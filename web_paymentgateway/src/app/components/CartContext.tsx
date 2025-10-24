@@ -7,6 +7,7 @@ type Item = {
   price: number;
   quantity: number;
   image: string;
+  description?: string; 
 };
 
 type CartCtx = {
