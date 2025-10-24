@@ -4,7 +4,7 @@ import mongoose, { Schema, Document } from "mongoose";
 interface ICart extends Document {
   user: mongoose.Types.ObjectId;
   items: Array<{
-    productId: string;
+    productId: mongoose.Types.ObjectId; // ubah jadi ObjectId
     quantity: number;
   }>;
   createdAt: Date;
@@ -21,7 +21,11 @@ const CartSchema = new Schema<ICart>(
     },
     items: [
       {
-        productId: { type: String, required: true },
+        productId: {
+          type: Schema.Types.ObjectId, // ubah ke ObjectId
+          ref: "Product", // tambahkan reference
+          required: true,
+        },
         quantity: { type: Number, required: true, min: 1 },
       },
     ],

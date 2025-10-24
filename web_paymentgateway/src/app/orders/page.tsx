@@ -1,12 +1,18 @@
+// app/orders/page.tsx
 "use client";
 import { useEffect, useState } from "react";
 
 interface OrderItem {
   productId: string;
   name: string;
-  price: number;
-  qty: number;
   image: string;
+  price: number;
+  quantity: number;
+}
+
+interface OrderUser {
+  name: string;
+  email: string;
 }
 
 interface Order {
@@ -14,10 +20,10 @@ interface Order {
   orderId: string;
   items: OrderItem[];
   total: number;
-  status: "PENDING" | "PAID" | "EXPIRED" | "CANCELLED";
+  status: string;
   createdAt: string;
   updatedAt: string;
-  xenditInvoiceId?: string;
+  user?: OrderUser; // ada jika admin
 }
 
 export default function OrdersPage() {
@@ -25,10 +31,15 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/orders")
+    fetch("/api/orders", { credentials: "include" })
       .then(res => res.json())
-      .then(data => {
-        setOrders(data);
+      .then((data) => {
+        if (data?.error) {
+          console.error("orders error:", data);
+          setOrders([]);
+        } else {
+          setOrders(Array.isArray(data) ? data : []);
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -45,44 +56,44 @@ export default function OrdersPage() {
 
       {orders.length === 0 && <p>Belum ada orderan.</p>}
 
-      {orders.map((order) => (
-        <div
-          key={order._id}
-          className="border rounded-lg p-4 mb-4 shadow-sm"
-        >
+      {orders.map((order, orderIdx) => (
+        <div key={`${order._id}-${orderIdx}`} className="border rounded-lg p-4 mb-4 shadow-sm">
           <div className="flex justify-between items-center mb-2">
             <span className="font-semibold">{order.orderId}</span>
-            <span
-              className={`px-2 py-1 rounded text-sm font-medium ${
-                order.status === "PAID"
-                  ? "bg-green-100 text-green-700"
-                  : order.status === "PENDING"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-red-100 text-red-700"
-              }`}
-            >
+            <span className={`px-2 py-1 rounded text-sm font-medium ${
+              order.status === "PAID"
+                ? "bg-green-100 text-green-700"
+                : order.status === "PENDING"
+                ? "bg-yellow-100 text-yellow-700"
+                : "bg-red-100 text-red-700"
+            }`}>
               {order.status}
             </span>
           </div>
 
-          {order.items.length > 0 ? (
+          {/* Info pembeli kalau ada */}
+          {order.user && (
+            <p className="text-sm text-gray-500 mb-2">
+              Pembeli: {order.user.name} ({order.user.email})
+            </p>
+          )}
+
+          {/* Daftar item */}
+          {order.items && order.items.length > 0 ? (
             <div className="space-y-2 mb-2">
               {order.items.map((item, idx) => (
-                <div
-                  key={`${order._id}-${item.productId}-${idx}`}
-                  className="flex justify-between items-center"
-                >
+                <div key={`${order._id}-${item.productId || idx}`} className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
                     <img
-                      src={item.image}
-                      alt={item.name}
+                      src={item.image || "/placeholder.png"}
+                      alt={item.name || "Product"}
                       className="w-12 h-12 object-cover rounded"
                     />
                     <span>
-                      {item.name} x {item.qty}
+                      {item.name || "Unknown"} x {item.quantity}
                     </span>
                   </div>
-                  <span>Rp.{(item.price * item.qty).toLocaleString("id-ID")}</span>
+                  <span>Rp.{((Number(item.price) || 0) * (Number(item.quantity) || 0)).toLocaleString("id-ID")}</span>
                 </div>
               ))}
             </div>
@@ -90,9 +101,10 @@ export default function OrdersPage() {
             <p className="text-gray-500 mb-2">Tidak ada item</p>
           )}
 
+          {/* Total */}
           <div className="flex justify-between font-semibold border-t pt-2">
             <span>Total:</span>
-            <span>Rp.{order.total.toLocaleString("id-ID")}</span>
+            <span>Rp.{(Number(order.total) || 0).toLocaleString("id-ID")}</span>
           </div>
         </div>
       ))}

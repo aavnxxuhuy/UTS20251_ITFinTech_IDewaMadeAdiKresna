@@ -1,37 +1,41 @@
-// models/order.ts
+// models/orders.ts
 import mongoose, { Schema, Document } from "mongoose";
 
 interface IOrder extends Document {
   user: mongoose.Types.ObjectId;
   orderId: string;
   items: Array<{
-    productId: string;
+    productId: mongoose.Types.ObjectId;
     quantity: number;
     price: number;
   }>;
   total: number;
   status: string;
-  createdAt: Date;
-  updatedAt: Date;
+  paymentDetails?: object;
 }
 
 const OrderSchema = new Schema<IOrder>(
   {
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    orderId: { type: String, required: true, unique: true },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    orderId: { type: String, required: true },
     items: [
       {
-        productId: { type: String, required: true },
+        productId: {
+          type: Schema.Types.ObjectId,
+          ref: "Product", // 🔥 tambahkan ini
+          required: true,
+        },
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
       },
     ],
     total: { type: Number, required: true },
-    status: { type: String, default: "PENDING" },
+    status: {
+      type: String,
+      enum: ["PENDING", "PAID", "CANCELLED"],
+      default: "PENDING",
+    },
+    paymentDetails: { type: Object },
   },
   { timestamps: true }
 );

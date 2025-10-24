@@ -1,3 +1,4 @@
+// api/xendit/webhook.ts
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/orders";
@@ -25,11 +26,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Invalid payload" }, { status: 400 });
     }
 
+    // Tentukan status baru
     let newStatus = "PENDING";
     if (status === "PAID" || status === "SUCCEEDED") newStatus = "PAID";
     else if (status === "EXPIRED") newStatus = "EXPIRED";
     else if (status === "CANCELLED" || status === "FAILED") newStatus = "CANCELLED";
 
+    // Update order & populate user
     const order = await Order.findOneAndUpdate(
       { orderId: external_id },
       {
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
         },
       },
       { new: true }
-    );
+    ).populate("user", "name phone"); // <-- populate user di sini
 
     if (!order) {
       console.log("Order not found for external_id:", external_id);
@@ -57,8 +60,26 @@ export async function POST(req: Request) {
 
     console.log("Order updated via webhook:", order);
 
-    if (order.customerPhone) {
-      await sendWhatsAppNotification(order.customerPhone, `Halo ${order.customerName || "Pelanggan"}, pembayaran Anda telah *${newStatus}*. Terima kasih telah berbelanja!`);
+    // 🔹 Kirim WA notifikasi sesuai status
+    if (order.user?.phone) {
+      let message = `Halo ${order.user.name}, status pesanan Anda dengan kode *${order.orderId}* kini: *${newStatus}*.\nTotal: Rp${(Number(order.total) || 0).toLocaleString("id-ID")}.`;
+
+      switch (newStatus) {
+        case "PAID":
+          message += `\n\nTerima kasih telah melakukan pembayaran! Pesanan Anda sedang diproses.`;
+          break;
+        case "EXPIRED":
+          message += `\n\nMaaf, pesanan Anda telah kedaluwarsa. Silakan buat pesanan baru jika ingin membeli.`;
+          break;
+        case "CANCELLED":
+          message += `\n\nPesanan Anda telah dibatalkan. Jika ada pertanyaan, hubungi customer service.`;
+          break;
+      }
+
+      await sendWhatsAppNotification(order.user.phone, message);
+      console.log("WA notification sent to", order.user.phone);
+    } else {
+      console.warn("User phone not found, WA not sent");
     }
 
     return NextResponse.json({ success: true });
