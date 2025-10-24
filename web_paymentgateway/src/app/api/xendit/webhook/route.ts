@@ -45,76 +45,80 @@ export async function POST(req: Request) {
 
     console.log("Order updated via webhook:", order);
 
+    // Ambil items dari raw_payload
+    const rawPayload = body.payment_details?.[0]?.payment_response?.raw_invoice_payload || body.data?.payment_details?.[0]?.payment_response?.raw_invoice_payload;
+    const xenditItems = rawPayload?.items || [];
+
+    const shippingFee = rawPayload?.shipping_amount || 0;
+    const taxAmount = rawPayload?.tax_amount || 0;
+    const totalAmount = rawPayload?.amount || body.amount || body.data?.amount || 0;
+
     // 🔹 Kirim WA
     if (order.user?.phone) {
-      let waMessage = `Halo ${order.user.name}, status pesanan Anda dengan kode *${order.orderId}* kini: *${newStatus}*.\nTotal: Rp${(Number(order.total) || 0).toLocaleString("id-ID")}.`;
+      let itemsText = xenditItems.map((i: any) => `${i.name} (${i.quantity}) Rp${(i.price || 0).toLocaleString("id-ID")}`).join("\n");
+      let waMessage = `Halo ${order.user.name}, status pesanan Anda dengan kode *${order.orderId}* kini: *${newStatus}*.\n\n${itemsText}\n\nOngkir: Rp${shippingFee.toLocaleString("id-ID")}\nPajak: Rp${taxAmount.toLocaleString("id-ID")}\nTotal: Rp${totalAmount.toLocaleString("id-ID")}`;
 
-      switch (newStatus) {
-        case "PAID":
-          waMessage += "\n\nTerima kasih telah melakukan pembayaran! Pesanan Anda sedang diproses.";
-          break;
-        case "EXPIRED":
-          waMessage += "\n\nMaaf, pesanan Anda telah kedaluwarsa. Silakan buat pesanan baru jika ingin membeli.";
-          break;
-        case "CANCELLED":
-          waMessage += "\n\nPesanan Anda telah dibatalkan. Jika ada pertanyaan, hubungi customer service.";
-          break;
+      if (newStatus === "PAID") {
+        waMessage += "\n\nTerima kasih telah melakukan pembayaran! Pesanan Anda sedang diproses.";
       }
 
       await sendWhatsAppNotification(order.user.phone, waMessage);
-      console.log("WA notification sent to", order.user.phone);
     }
 
-    // 🔹 Kirim Email
-    if (order.user?.email) {
-      let emailSubject = `Update Status Pesanan ${order.orderId}`;
+    // Buat email HTML
+    const itemsHtml = xenditItems.map((i: any) => `
+      <tr>
+        <td style="padding:5px 10px;">${i.name}</td>
+        <td style="padding:5px 10px; text-align:center;">${i.quantity}</td>
+        <td style="padding:5px 10px; text-align:right;">Rp${(i.price || 0).toLocaleString("id-ID")}</td>
+      </tr>
+    `).join("");
 
-      const itemsHtml = order.items.map((i: any) => `
-        <tr>
-          <td style="padding:5px 10px;">${i.name}</td>
-          <td style="padding:5px 10px; text-align:center;">${i.quantity}</td>
-          <td style="padding:5px 10px; text-align:right;">Rp${(i.price || 0).toLocaleString("id-ID")}</td>
-        </tr>
-      `).join("");
+    const emailHtml = `
+      <div style="font-family:sans-serif; max-width:600px; margin:auto; padding:20px; border:1px solid #ddd; border-radius:8px;">
+        <h2 style="text-align:center;">PrasmulEats</h2>
+        <p>Halo ${order.user.name},</p>
+        <p>Status pesanan Anda dengan kode <b>${order.orderId}</b> kini: <b>${newStatus}</b>.</p>
 
-      const total = order.total || 0;
+        <table style="width:100%; border-collapse: collapse; margin-top:15px;">
+          <thead>
+            <tr style="background:#f5f5f5;">
+              <th style="padding:5px 10px; text-align:left;">Produk</th>
+              <th style="padding:5px 10px; text-align:center;">Qty</th>
+              <th style="padding:5px 10px; text-align:right;">Harga</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+            <tr>
+              <td colspan="2" style="padding:5px 10px; text-align:right;">Ongkir</td>
+              <td style="padding:5px 10px; text-align:right;">Rp${shippingFee.toLocaleString("id-ID")}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding:5px 10px; text-align:right;">Pajak</td>
+              <td style="padding:5px 10px; text-align:right;">Rp${taxAmount.toLocaleString("id-ID")}</td>
+            </tr>
+            <tr style="font-weight:bold; border-top:2px solid #000;">
+              <td colspan="2" style="padding:5px 10px; text-align:right;">Total</td>
+              <td style="padding:5px 10px; text-align:right;">Rp${totalAmount.toLocaleString("id-ID")}</td>
+            </tr>
+          </tbody>
+        </table>
 
-      const emailHtml = `
-        <div style="font-family:sans-serif; max-width:600px; margin:auto; padding:20px; border:1px solid #ddd; border-radius:8px;">
-          <h2 style="text-align:center;">PrasmulEats</h2>
-          <p>Halo ${order.user.name},</p>
-          <p>Status pesanan Anda dengan kode <b>${order.orderId}</b> kini: <b>${newStatus}</b>.</p>
+        <p style="margin-top:15px;">
+          Silakan cek detail invoice <a href="https://xendit.co/invoice/${invoiceId}" target="_blank">di sini</a>.
+        </p>
+        <p>Terima kasih telah berbelanja di PrasmulEats!</p>
+      </div>
+    `;
 
-          <table style="width:100%; border-collapse: collapse; margin-top:15px;">
-            <thead>
-              <tr style="background:#f5f5f5;">
-                <th style="padding:5px 10px; text-align:left;">Produk</th>
-                <th style="padding:5px 10px; text-align:center;">Qty</th>
-                <th style="padding:5px 10px; text-align:right;">Harga</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHtml}
-              <tr style="font-weight:bold; border-top:2px solid #000;">
-                <td colspan="2" style="padding:5px 10px; text-align:right;">Total</td>
-                <td style="padding:5px 10px; text-align:right;">Rp${total.toLocaleString("id-ID")}</td>
-              </tr>
-            </tbody>
-          </table>
+    const emailSubject = `Status Pesanan Anda: ${newStatus}`;
 
-          <p style="margin-top:15px;">
-            Silakan cek detail invoice <a href="https://xendit.co/invoice/${invoiceId}" target="_blank">di sini</a>.
-          </p>
-          <p>Terima kasih telah berbelanja di PrasmulEats!</p>
-        </div>
-      `;
-
-      try {
-        await sendEmail(order.user.email, emailSubject, emailHtml);
-        console.log("Email sent to", order.user.email);
-      } catch (err) {
-        console.error("Failed to send email:", err);
-      }
+    try {
+      await sendEmail(order.user.email, emailSubject, emailHtml);
+      console.log("Email sent to", order.user.email);
+    } catch (err) {
+      console.error("Failed to send email:", err);
     }
 
     return NextResponse.json({ success: true });
