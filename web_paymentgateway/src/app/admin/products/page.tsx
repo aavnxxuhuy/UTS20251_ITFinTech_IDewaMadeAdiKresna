@@ -31,11 +31,11 @@ export default function AdminProducts() {
         {data.map((p:any)=>(
           <div key={p._id} className="bg-white p-4 rounded shadow">
             <img src={p.image} alt={p.name} className="w-full h-40 object-cover rounded mb-2" />
-            <div className="font-semibold">{p.name}</div>
-            <div className="text-sm">Rp.{p.price}</div>
+            <div className="font-semibold text-black">{p.name}</div>
+            <div className="text-sm text-black">Rp.{p.price}</div>
             <div className="mt-2 flex gap-2">
               <button className="btn btn-sm">Edit</button>
-              <button className="btn btn-sm btn-ghost" onClick={async ()=>{ await fetch(`/api/admin/products/${p._id}`, { method: "DELETE" }); mutate(); }}>Delete</button>
+              <button className="btn btn-sm btn-ghost text-gray-800" onClick={async ()=>{ await fetch(`/api/admin/products/${p._id}`, { method: "DELETE" }); mutate(); }}>Delete</button>
             </div>
           </div>
         ))}

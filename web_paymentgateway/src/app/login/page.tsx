@@ -48,16 +48,16 @@ export default function LoginPage() {
       <div className="max-w-md w-full bg-white p-6 rounded-xl shadow">
         {!mfaRequired ? (
           <>
-            <h2 className="text-2xl font-bold mb-4">Login</h2>
+            <h2 className="text-2xl font-bold mb-4 text-black">Login</h2>
             <input className="input input-bordered w-full mb-3" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
             <input className="input input-bordered w-full mb-3" type="password" placeholder="Password" value={password} onChange={(e)=>setPassword(e.target.value)} />
             <button className="btn btn-primary w-full" onClick={doLogin}>Login</button>
-            <p className="text-sm mt-3">Belum punya akun? <a href="/register" className="text-blue-600">Register</a></p>
+            <p className="text-sm mt-3 text-gray-800">Belum punya akun? <a href="/register" className="text-blue-600">Register</a></p>
           </>
         ) : (
           <>
-            <h2 className="text-2xl font-bold mb-4">Enter OTP</h2>
-            <p className="text-sm mb-3">OTP sudah dikirim ke WhatsApp nomor terdaftar.</p>
+            <h2 className="text-2xl font-bold mb-4 text-black">Enter OTP</h2>
+            <p className="text-sm mb-3 text-gray-800">OTP sudah dikirim ke WhatsApp nomor terdaftar.</p>
             <input className="input input-bordered w-full mb-3" placeholder="6-digit OTP" value={otp} onChange={(e)=>setOtp(e.target.value)} />
             <button className="btn btn-primary w-full" onClick={verifyOtp}>Verify OTP</button>
           </>

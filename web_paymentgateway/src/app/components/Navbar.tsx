@@ -32,12 +32,22 @@ export default function Navbar() {
       <div className="hidden md:flex flex-none px-5 space-x-4 items-center">
         {user ? (
           <>
-            {user.isAdmin && <Link href="/admin" className="btn btn-ghost">Admin</Link>}
-            <Link href="/orders" className="btn btn-ghost">Orderan</Link>
-            <Link href="/checkout" className="btn btn-ghost relative">
-              🛒
-              {count > 0 && <span className="badge badge-sm indicator-item">{count}</span>}
-            </Link>
+            {user.isAdmin ? (
+              <>
+                {/* Admin view */}
+                <Link href="/admin" className="btn btn-ghost">Admin</Link>
+                <Link href="/orders" className="btn btn-ghost">Orderan</Link>
+              </>
+            ) : (
+              <>
+                {/* Regular user view */}
+                <Link href="/orders" className="btn btn-ghost">Orderan</Link>
+                <Link href="/checkout" className="btn btn-ghost relative">
+                  🛒
+                  {count > 0 && <span className="badge badge-sm indicator-item">{count}</span>}
+                </Link>
+              </>
+            )}
             <div className="flex items-center space-x-2">
               <span className="text-sm">Hi, {user.name}</span>
               <button className="btn btn-sm" onClick={logout}>Logout</button>
@@ -51,9 +61,18 @@ export default function Navbar() {
         )}
       </div>
 
+
       {/* mobile menu kept simple */}
       <div className="md:hidden flex-none">
-        <Link href={user ? "/checkout" : "/login"} className="btn btn-ghost">🛒</Link>
+        {user ? (
+          user.isAdmin ? (
+            <Link href="/admin" className="btn btn-ghost">Admin</Link>
+          ) : (
+            <Link href="/checkout" className="btn btn-ghost">🛒</Link>
+          )
+        ) : (
+          <Link href="/login" className="btn btn-ghost">🛒</Link>
+        )}
       </div>
     </div>
   );

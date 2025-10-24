@@ -52,7 +52,7 @@ export default function OrdersPage() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Orderan Saya</h1>
+      <h1 className="text-2xl font-bold mb-4">Orderan</h1>
 
       {orders.length === 0 && <p>Belum ada orderan.</p>}
 
