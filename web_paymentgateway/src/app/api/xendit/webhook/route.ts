@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Order from "@/models/orders";
 import { sendWhatsAppNotification } from "@/lib/waService";
+import { sendEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
@@ -14,44 +15,28 @@ export async function POST(req: Request) {
     const external_id = body.external_id || body.data?.external_id;
     const status = body.status || body.data?.status;
     const invoiceId = body.id || body.data?.id;
-    const amount = body.amount || body.data?.amount;
-    const paidAmount = body.paid_amount || body.data?.paid_amount;
-    const paidAt = body.paid_at || body.data?.paid_at;
-    const paymentMethod = body.payment_method || body.data?.payment_method;
-    const paymentChannel = body.payment_channel || body.data?.payment_channel;
-    const payerEmail = body.payer_email || body.data?.payer_email;
 
     if (!external_id || !status) {
       console.log("Webhook missing external_id or status:", body);
       return NextResponse.json({ success: false, message: "Invalid payload" }, { status: 400 });
     }
 
-    // Tentukan status baru
     let newStatus = "PENDING";
     if (status === "PAID" || status === "SUCCEEDED") newStatus = "PAID";
     else if (status === "EXPIRED") newStatus = "EXPIRED";
     else if (status === "CANCELLED" || status === "FAILED") newStatus = "CANCELLED";
 
-    // Update order & populate user
     const order = await Order.findOneAndUpdate(
       { orderId: external_id },
       {
         status: newStatus,
         xenditInvoiceId: invoiceId,
         paymentDetails: {
-          invoiceId,
-          amount,
-          paidAmount,
-          status,
-          paidAt,
-          paymentMethod,
-          paymentChannel,
-          payerEmail,
-          rawPayload: body,
+          ...body,
         },
       },
       { new: true }
-    ).populate("user", "name phone"); // <-- populate user di sini
+    ).populate("user", "name email phone");
 
     if (!order) {
       console.log("Order not found for external_id:", external_id);
@@ -60,26 +45,76 @@ export async function POST(req: Request) {
 
     console.log("Order updated via webhook:", order);
 
-    // 🔹 Kirim WA notifikasi sesuai status
+    // 🔹 Kirim WA
     if (order.user?.phone) {
-      let message = `Halo ${order.user.name}, status pesanan Anda dengan kode *${order.orderId}* kini: *${newStatus}*.\nTotal: Rp${(Number(order.total) || 0).toLocaleString("id-ID")}.`;
+      let waMessage = `Halo ${order.user.name}, status pesanan Anda dengan kode *${order.orderId}* kini: *${newStatus}*.\nTotal: Rp${(Number(order.total) || 0).toLocaleString("id-ID")}.`;
 
       switch (newStatus) {
         case "PAID":
-          message += `\n\nTerima kasih telah melakukan pembayaran! Pesanan Anda sedang diproses.`;
+          waMessage += "\n\nTerima kasih telah melakukan pembayaran! Pesanan Anda sedang diproses.";
           break;
         case "EXPIRED":
-          message += `\n\nMaaf, pesanan Anda telah kedaluwarsa. Silakan buat pesanan baru jika ingin membeli.`;
+          waMessage += "\n\nMaaf, pesanan Anda telah kedaluwarsa. Silakan buat pesanan baru jika ingin membeli.";
           break;
         case "CANCELLED":
-          message += `\n\nPesanan Anda telah dibatalkan. Jika ada pertanyaan, hubungi customer service.`;
+          waMessage += "\n\nPesanan Anda telah dibatalkan. Jika ada pertanyaan, hubungi customer service.";
           break;
       }
 
-      await sendWhatsAppNotification(order.user.phone, message);
+      await sendWhatsAppNotification(order.user.phone, waMessage);
       console.log("WA notification sent to", order.user.phone);
-    } else {
-      console.warn("User phone not found, WA not sent");
+    }
+
+    // 🔹 Kirim Email
+    if (order.user?.email) {
+      let emailSubject = `Update Status Pesanan ${order.orderId}`;
+
+      const itemsHtml = order.items.map((i: any) => `
+        <tr>
+          <td style="padding:5px 10px;">${i.name}</td>
+          <td style="padding:5px 10px; text-align:center;">${i.quantity}</td>
+          <td style="padding:5px 10px; text-align:right;">Rp${(i.price || 0).toLocaleString("id-ID")}</td>
+        </tr>
+      `).join("");
+
+      const total = order.total || 0;
+
+      const emailHtml = `
+        <div style="font-family:sans-serif; max-width:600px; margin:auto; padding:20px; border:1px solid #ddd; border-radius:8px;">
+          <h2 style="text-align:center;">PrasmulEats</h2>
+          <p>Halo ${order.user.name},</p>
+          <p>Status pesanan Anda dengan kode <b>${order.orderId}</b> kini: <b>${newStatus}</b>.</p>
+
+          <table style="width:100%; border-collapse: collapse; margin-top:15px;">
+            <thead>
+              <tr style="background:#f5f5f5;">
+                <th style="padding:5px 10px; text-align:left;">Produk</th>
+                <th style="padding:5px 10px; text-align:center;">Qty</th>
+                <th style="padding:5px 10px; text-align:right;">Harga</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+              <tr style="font-weight:bold; border-top:2px solid #000;">
+                <td colspan="2" style="padding:5px 10px; text-align:right;">Total</td>
+                <td style="padding:5px 10px; text-align:right;">Rp${total.toLocaleString("id-ID")}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p style="margin-top:15px;">
+            Silakan cek detail invoice <a href="https://xendit.co/invoice/${invoiceId}" target="_blank">di sini</a>.
+          </p>
+          <p>Terima kasih telah berbelanja di PrasmulEats!</p>
+        </div>
+      `;
+
+      try {
+        await sendEmail(order.user.email, emailSubject, emailHtml);
+        console.log("Email sent to", order.user.email);
+      } catch (err) {
+        console.error("Failed to send email:", err);
+      }
     }
 
     return NextResponse.json({ success: true });
